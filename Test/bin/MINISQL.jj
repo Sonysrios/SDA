@@ -1,0 +1,180 @@
+/**opciones generales
+en este analizador se pueden implementar para añadir referencias a otras sentencias que lineas adelante describimos...
+codigo usado en la descripcion del analizador*/
+
+PARSER_BEGIN(MINISQL)
+import java.io.*;
+import java.io.PrintStream;
+
+class MINISQL
+{
+		public static void main(String[] args) throws ParseException , Exception
+		{
+			try {
+					MINISQL analizador = new MINISQL ( System.in );
+					analizador.Funcion();
+					System.out.println("\tLa ejecucion a evaluado el codigo y no posee errores ....");
+				}				//
+				
+			catch (ParseException e){
+					System.out.println(e.getMessage());
+					System.out.println("\tPosee errores en la linea de codigo especificada ....");
+				}
+		}
+}
+PARSER_END(MINISQL)
+
+/**especificaciones lexicas de la gramatica
+ Definiciones del lexico*/
+
+/**operadores logicos*/
+TOKEN	:
+{
+	<EQUAL : "="> {System.out.println("		IGUALDAD 		-> "+image);} 
+	| <OR: "|" > {System.out.println(" 		OPERADOR-O 		-> "+image);}
+	| <MQUOTE: "'" > {System.out.println("		COMILLASIMPLE 		-> "+image);}
+}
+
+
+/**operaciones basicas del sql*/
+TOKEN	:
+{
+	  <SELECT: "SELECT"> {System.out.println("		FUNCIONSELECT		-> "+image);}
+	| <UPDATE: "UPDATE"> {System.out.println("		FUNCIONUPDATE 		-> "+image);}
+	| <DELETE: "DELETE"> {System.out.println("		FUNCIONDELETE 		-> "+image);}
+	| <INSERT: "INSERT"> {System.out.println("		FUNCIONINSERT 		-> "+image);}
+	| <FROM: "FROM"> {System.out.println("		CODIFOFROM		-> "+image);}
+	| <INTO: "INTO"> {System.out.println("		CODIGOINTO 		-> "+image);}
+	| <WHERE: "WHERE" >  {System.out.println("		CODIGOWHERE 		-> "+image);}
+	| <VALUES: "VALUES" > {System.out.println("		CODIGOVALUES		-> "+image);}
+	| <SET:"SET" > {System.out.println("		CODIGOSET 		-> "+image);}
+	| <FUNCION: "funcion" >{System.out.println("		FUNCION 		-> "+image);}
+	| <AND: "AND"> {System.out.println("		OPERADOR-Y -> "+image);}
+/**	| <nombreMayus:"significado" >*/ 
+}
+
+/**separadores de textos y otros*/
+TOKEN:
+{
+      <LPAREN: "(" >{System.out.println("		IZQPARENT		-> "+image);}
+	| <RPAREN: ")" >{System.out.println("		DERPARENT 		-> "+image);}
+	
+	/**ESTOS TOKENS SON POR SI MAS ADELANTE SE DESA AGREGAR MAS OPERACIONES AL ANALIZADOR*/
+	
+	| <LBRACE: "{" >{System.out.println("		IZQLLAVE 		-> "+image);}
+	| <RBRACE: "}" >{System.out.println("		DERLLAVE 		-> "+image);}
+	| <LBRACKET: "[" >{System.out.println("		IZQCORCH 		-> "+image);}
+	| <RBRACKET: "]" >{System.out.println("		DERCORCH 		-> "+image);}
+	| <SEMICOLON: ";" >{System.out.println("		PUNTO Y COMA 		-> "+image);}
+	| <COMMA: "," >{System.out.println("		COMA	 		-> "+image);}
+	| <DOT: "." >{System.out.println("		PUNTO 		-> "+image);}
+	| <BACKSLASH: "\"">{System.out.println("		BARRAINVERTIDA 		-> "+image);}
+	| <DOUBLEPOINT : ":"> {System.out.println("		DOUBLEPUNTO		 -> "+image);}
+}
+
+/** Ignorar los espacios tabulaciones y saltos de lineas...*/
+SKIP : 
+{ 
+	" "|"\n" | "\r" | "\r\n" | "\t"
+}
+/**identificadores*/
+TOKEN	:
+{
+	< IDENTIFIER: ( <LETTER> | < DIGIT>)+ ( "_" | "-" |<DIGIT> | <LETTER> )* > {System.out.println("		ID-PALABRA		-> "+image);}
+	| < LETTER: ["A"-"Z", "a"-"z"] >
+	| < DIGIT: ["0"-"9"] > {System.out.println("		NUMERO 		-> "+image);}
+}
+
+/**ESPECIFICACION SINTACTICA DE LA GRAMATICA*/ 
+void Funcion() :
+{}
+{
+	<FUNCION><IDENTIFIER><LBRACE>(Sentencias())+<RBRACE><EOF> /**	Como referencia para q lea el titulo de nuestro codigo*/
+}														/**ojo q aca se puede modificar a gusto*/		
+
+/**Metodos encargados de abrir las sentencias*/
+
+void Sentencias() :
+{}
+{
+	 SentenciaSelect() 	/**Listado de sentencias a analizar..*/
+	| SentenciaInsert()
+	| SentenciaUpdate()
+	| SentenciaDelete()	
+}
+
+/**metodo de lectura del select*/
+
+void SentenciaSelect() :
+{}
+{
+	LOOKAHEAD(2)<SELECT>ExpresionLarga()<FROM>Expresion()<SEMICOLON>
+	|<SELECT>ExpresionLarga()<FROM>Expresion()<WHERE>Expresion()EnParentsis()EComilla()<SEMICOLON>
+}		/**aqui se puede seguir optimizando el codigo para hacerlo mas pequeño*/
+
+/**metodo de lectura del insert*/
+
+void SentenciaInsert() :
+{}
+{
+	<INSERT><INTO>Expresion()EnParentsis()<VALUES>EnParentsisM()<SEMICOLON>
+}
+
+/**metodo de lectura del update*/
+
+void SentenciaUpdate() :
+{}
+{
+	<UPDATE>Expresion()<SET>Expresion()EComilla()<WHERE>Expresion()EComilla()<SEMICOLON>
+}
+
+/**metodo de lectura del delete*/
+
+void SentenciaDelete() :
+{}
+{
+	LOOKAHEAD(3)<DELETE><FROM>Expresion()<WHERE>Expresion()EComilla()
+	|<DELETE><FROM>Expresion()<WHERE>Expresion()EComilla()(<AND>Expresion()EComilla())*
+}
+
+/**aqui se une las letras y numeros para reducir codigo a analizar*/
+
+void Expresion():
+{}
+{
+    (<DIGIT> | <IDENTIFIER>)
+}
+
+
+/**Metodo para simplificar codigo que va entre parentesis*/
+
+void EnParentsis() :
+{}
+{
+	<LPAREN>Expresion()(<COMMA>Expresion())*<RPAREN>
+}
+
+/**Metodo para simplificar codigo que va entre parentesis con comillas*/
+
+void EnParentsisM() :
+{}
+{
+	<LPAREN><MQUOTE>Expresion()<MQUOTE>(<COMMA><MQUOTE>Expresion()<MQUOTE>)*<RPAREN>
+}
+
+
+
+/**metodo cuando una expresion es muy anidada con comas*/
+
+void ExpresionLarga() :
+{}
+{
+	Expresion()(<COMMA>Expresion())*
+}
+
+/**metodo para igualar expresiones y condicioens*/
+void EComilla() :
+{}
+{
+	<EQUAL><MQUOTE>Expresion()<MQUOTE>
+}
